@@ -1,10 +1,16 @@
-# Signin User
+# 14-Signin-User
 
 ## Install Packages
 
 1. npx shadcn@latest add form dropdown-menu
 2. npm i next-auth@beta bcryptjs react-hook-form @hookform/resolvers mongodb @auth/mongodb-adapter
 3. npm i --save-dev @types/bcryptjs
+
+## update .env.local
+
+### NextAuth (generate secret: $ npx auth secret)
+
+AUTH_SECRET=v7a59n6HN3COWeporDl4lxfKkL7UPkvVHOu0FDUetjA=
 
 ## create app/checkout/page.tsx
 
@@ -276,6 +282,28 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   },
 })
+```
+
+## middleware.ts
+
+```ts
+import NextAuth from 'next-auth'
+import authConfig from './auth.config'
+
+export const { auth: middleware } = NextAuth(authConfig)
+
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+  ],
+}
 ```
 
 ## create app/api/auth/[...nextauth]/route.ts
@@ -623,7 +651,6 @@ export const APP_COPYRIGHT =
 ## create app/(auth)/layout.tsx
 
 ```ts
-import { Toaster } from '@/components/ui/toaster'
 import { APP_COPYRIGHT } from '@/lib/constants'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -651,10 +678,7 @@ export default async function AuthLayout({
           />
         </Link>
       </header>
-      <main className='mx-auto max-w-sm min-w-80 p-4'>
-        <Toaster />
-        {children}
-      </main>
+      <main className='mx-auto max-w-sm min-w-80 p-4'>{children}</main>
       <footer className=' flex-1 mt-8  bg-gray-800 w-full flex flex-col gap-4 items-center p-8 text-sm'>
         <div className='flex justify-center space-x-4'>
           <Link href='/page/conditions-of-use'>Conditions of Use</Link>
@@ -935,46 +959,6 @@ const users: IUserInput[] = [
 ]
 
   users,
-```
-
-```ts
-// This approach is taken from https://github.com/vercel/next.js/tree/canary/examples/with-mongodb
-import { MongoClient, ServerApiVersion } from 'mongodb'
-
-if (!process.env.MONGODB_URI) {
-  throw new Error('Invalid/Missing environment variable: "MONGODB_URI"')
-}
-
-const uri = process.env.MONGODB_URI
-const options = {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  },
-}
-
-let client: MongoClient
-
-if (process.env.NODE_ENV === 'development') {
-  // In development mode, use a global variable so that the value
-  // is preserved across module reloads caused by HMR (Hot Module Replacement).
-  const globalWithMongo = global as typeof globalThis & {
-    _mongoClient?: MongoClient
-  }
-
-  if (!globalWithMongo._mongoClient) {
-    globalWithMongo._mongoClient = new MongoClient(uri, options)
-  }
-  client = globalWithMongo._mongoClient
-} else {
-  // In production mode, it's best to not use a global variable.
-  client = new MongoClient(uri, options)
-}
-
-// Export a module-scoped MongoClient. By doing this in a
-// separate module, the client can be shared across functions.
-export default client
 ```
 
 ## update lib/db/seed.ts
