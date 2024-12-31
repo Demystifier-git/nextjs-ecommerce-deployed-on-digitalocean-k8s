@@ -2,13 +2,12 @@
 
 import { connectToDatabase } from '@/lib/db'
 import Product, { IProduct } from '@/lib/db/models/product.model'
-import { PAGE_SIZE } from '../constants'
-
 import { revalidatePath } from 'next/cache'
 import { formatError } from '../utils'
 import { ProductInputSchema, ProductUpdateSchema } from '../validator'
 import { IProductInput } from '@/types'
 import { z } from 'zod'
+import { getSetting } from './setting.actions'
 
 // CREATE
 export async function createProduct(data: IProductInput) {
@@ -41,12 +40,6 @@ export async function updateProduct(data: z.infer<typeof ProductUpdateSchema>) {
     return { success: false, message: formatError(error) }
   }
 }
-// GET ONE PRODUCT BY ID
-export async function getProductById(productId: string) {
-  await connectToDatabase()
-  const product = await Product.findById(productId)
-  return JSON.parse(JSON.stringify(product)) as IProduct
-}
 // DELETE
 export async function deleteProduct(id: string) {
   try {
@@ -61,6 +54,12 @@ export async function deleteProduct(id: string) {
   } catch (error) {
     return { success: false, message: formatError(error) }
   }
+}
+// GET ONE PRODUCT BY ID
+export async function getProductById(productId: string) {
+  await connectToDatabase()
+  const product = await Product.findById(productId)
+  return JSON.parse(JSON.stringify(product)) as IProduct
 }
 
 // GET ALL PRODUCTS FOR ADMIN
@@ -77,7 +76,10 @@ export async function getAllProductsForAdmin({
 }) {
   await connectToDatabase()
 
-  const pageSize = limit || PAGE_SIZE
+  const {
+    common: { pageSize },
+  } = await getSetting()
+  limit = limit || pageSize
   const queryFilter =
     query && query !== 'all'
       ? {
@@ -102,8 +104,8 @@ export async function getAllProductsForAdmin({
     ...queryFilter,
   })
     .sort(order)
-    .skip(pageSize * (Number(page) - 1))
-    .limit(pageSize)
+    .skip(limit * (Number(page) - 1))
+    .limit(limit)
     .lean()
 
   const countProducts = await Product.countDocuments({
@@ -117,6 +119,7 @@ export async function getAllProductsForAdmin({
     to: pageSize * (Number(page) - 1) + products.length,
   }
 }
+
 export async function getAllCategories() {
   await connectToDatabase()
   const categories = await Product.find({ isPublished: true }).distinct(
@@ -177,7 +180,7 @@ export async function getProductBySlug(slug: string) {
 export async function getRelatedProductsByCategory({
   category,
   productId,
-  limit = PAGE_SIZE,
+  limit = 4,
   page = 1,
 }: {
   category: string
@@ -185,6 +188,10 @@ export async function getRelatedProductsByCategory({
   limit?: number
   page: number
 }) {
+  const {
+    common: { pageSize },
+  } = await getSetting()
+  limit = limit || pageSize
   await connectToDatabase()
   const skipAmount = (Number(page) - 1) * limit
   const conditions = {
@@ -223,7 +230,10 @@ export async function getAllProducts({
   rating?: string
   sort?: string
 }) {
-  limit = limit || PAGE_SIZE
+  const {
+    common: { pageSize },
+  } = await getSetting()
+  limit = limit || pageSize
   await connectToDatabase()
 
   const queryFilter =
@@ -252,7 +262,7 @@ export async function getAllProducts({
       ? {
           price: {
             $gte: Number(price.split('-')[0]),
-            $lte: Number(price.split('-')[1]), // 10-50
+            $lte: Number(price.split('-')[1]),
           },
         }
       : {}
