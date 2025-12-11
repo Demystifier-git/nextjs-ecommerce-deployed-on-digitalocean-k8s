@@ -1,0 +1,32 @@
+name: Deploy to DigitalOcean Droplet
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout Repository
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2. Setup SSH
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DO_SSH_KEY }}" > ~/.ssh/do_key
+          chmod 600 ~/.ssh/do_key
+          echo -e "Host do\n  HostName ${{ secrets.DO_HOST }}\n  User ${{ secrets.DO_USER }}\n  IdentityFile ~/.ssh/do_key\n  StrictHostKeyChecking=no" >> ~/.ssh/config
+
+      # 3. Deploy application_code folder using rsync
+      - name: Deploy to Droplet
+        run: |
+          rsync -avz  \
+            --exclude ".git" \
+            --exclude ".github" \
+            ./ \
+            do:/root/app
