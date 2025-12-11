@@ -1,8 +1,10 @@
 import createMiddleware from 'next-intl/middleware'
 import { routing } from './i18n/routing'
+
 import NextAuth from 'next-auth'
 import authConfig from './auth.config'
 
+// Public pages that don’t require auth
 const publicPages = [
   '/',
   '/search',
@@ -14,32 +16,36 @@ const publicPages = [
   '/page/(.*)',
 ]
 
-// Create Intl middleware
+// Initialize i18n middleware
 const intlMiddleware = createMiddleware(routing)
 
-// Trusted hosts from env variable
-const trustedHosts = process.env.TRUSTED_HOSTS?.split(',').map(h => h.trim()) || []
+// Set NEXTAUTH_URL automatically based on environment
+if (!process.env.NEXTAUTH_URL) {
+  process.env.NEXTAUTH_URL =
+    process.env.NODE_ENV === 'production'
+      ? 'http://167.172.31.245:3000'
+      : 'http://localhost:3000'
+}
 
-// Create NextAuth instance
-const { auth } = NextAuth({
-  ...authConfig,
-  // Make sure your NextAuth version supports `trustHost`
-  trustHost: trustedHosts,
-})
+// Initialize NextAuth (do NOT use `trustHost` array)
+const { auth } = NextAuth(authConfig)
 
 export default auth((req) => {
+  // Regex to match public pages
   const publicPathnameRegex = new RegExp(
     `^(/(${routing.locales.join('|')}))?(${publicPages
       .flatMap((p) => (p === '/' ? ['', '/'] : p))
       .join('|')})/?$`,
     'i'
   )
+
   const isPublicPage = publicPathnameRegex.test(req.nextUrl.pathname)
 
   if (isPublicPage) {
     return intlMiddleware(req)
   } else {
     if (!req.auth) {
+      // Redirect to sign-in if user is not authenticated
       const newUrl = new URL(
         `/sign-in?callbackUrl=${encodeURIComponent(req.nextUrl.pathname) || '/'}`,
         req.nextUrl.origin
@@ -52,6 +58,8 @@ export default auth((req) => {
 })
 
 export const config = {
+  // Skip API and _next paths for i18n middleware
   matcher: ['/((?!api|_next|.*\\..*).*)'],
 }
+
 
