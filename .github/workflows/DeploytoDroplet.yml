@@ -1,4 +1,4 @@
-name: Deploy to DigitalOcean Droplet
+name: Deploy Next.js to DigitalOcean Droplet
 
 on:
   push:
@@ -10,24 +10,38 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout Repository
-      - name: Checkout code
+      # 1️⃣ Checkout repository
+      - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 2. Setup SSH
+      # 2️⃣ Setup SSH key
       - name: Configure SSH
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.DO_SSH_KEY }}" > ~/.ssh/do_key
           chmod 600 ~/.ssh/do_key
+          # Convert key to PEM format if needed (avoids libcrypto error)
+          ssh-keygen -p -f ~/.ssh/do_key -m PEM -N ""
+          # Add droplet to known hosts
           echo -e "Host do\n  HostName ${{ secrets.DO_HOST }}\n  User ${{ secrets.DO_USER }}\n  IdentityFile ~/.ssh/do_key\n  StrictHostKeyChecking=no" >> ~/.ssh/config
 
-      # 3. Deploy repository/folder to /root/app on droplet
-      - name: Deploy to Droplet
+      # 3️⃣ Test SSH connection
+      - name: Test SSH
+        run: ssh do "echo 'SSH connection successful!'"
+
+      # 4️⃣ Ensure remote folder exists
+      - name: Create remote folder
+        run: ssh do "mkdir -p /root/app"
+
+      # 5️⃣ Deploy repository/folder using rsync
+      - name: Rsync files to droplet
         run: |
-          rsync -avz \
+          rsync -avz --delete \
             --exclude ".git" \
             --exclude ".github" \
             --exclude "node_modules" \
             ./ do:/root/app/
+
+    
+
 
