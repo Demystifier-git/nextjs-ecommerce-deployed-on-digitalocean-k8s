@@ -28,5 +28,5 @@ jobs:
           rsync -avz  \
             --exclude ".git" \
             --exclude ".github" \
-            ./ \
+            ./ do:/root/app/
             
